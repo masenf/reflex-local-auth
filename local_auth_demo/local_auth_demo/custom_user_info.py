@@ -32,7 +32,8 @@ class MyRegisterState(reflex_local_auth.RegistrationState):
                 session.add(
                     UserInfo(
                         email=form_data["email"],
-                        created_from_ip=self.router.headers.get(
+                        created_from_ip=getattr(
+                            self.router.headers,
                             "x_forwarded_for",
                             self.router.session.client_ip,
                         ),
