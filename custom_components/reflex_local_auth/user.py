@@ -42,3 +42,10 @@ class User(
             password=secret.encode("utf-8"),
             hashed_password=self.password_hash,
         )
+
+    def dict(self, *args, **kwargs) -> dict:
+        """Return a dictionary representation of the user."""
+        d = super().dict(*args, **kwargs)
+        # Never return the hash when serializing to the frontend.
+        d.pop("password_hash", None)
+        return d
