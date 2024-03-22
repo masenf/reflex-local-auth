@@ -1,4 +1,6 @@
 """Login state and authentication logic."""
+from __future__ import annotations
+
 import reflex as rx
 from sqlmodel import select
 

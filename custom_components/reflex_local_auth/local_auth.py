@@ -4,6 +4,8 @@ access it for verifying access to event handlers and computed vars.
 
 Your app may inherit from LocalAuthState, or it may access it via the `get_state` API.
 """
+from __future__ import annotations
+
 import datetime
 
 from sqlmodel import select

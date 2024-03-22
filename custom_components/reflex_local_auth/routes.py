@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 LOGIN_ROUTE = "/login"
 REGISTER_ROUTE = "/register"
 

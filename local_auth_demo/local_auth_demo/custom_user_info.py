@@ -1,3 +1,5 @@
+from typing import Optional
+
 import sqlmodel
 import reflex as rx
 import reflex_local_auth
@@ -13,7 +15,7 @@ class UserInfo(rx.Model, table=True):
 
 class MyLocalAuthState(reflex_local_auth.LocalAuthState):
     @rx.cached_var
-    def authenticated_user_info(self) -> UserInfo | None:
+    def authenticated_user_info(self) -> Optional[UserInfo]:
         if self.authenticated_user.id < 0:
             return
         with rx.session() as session:
