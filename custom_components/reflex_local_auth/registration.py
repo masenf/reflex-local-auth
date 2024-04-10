@@ -9,7 +9,7 @@ from sqlmodel import select
 
 from . import routes
 from .local_auth import LocalAuthState
-from .user import User
+from .user import LocalUser
 
 
 POST_REGISTRATION_DELAY = 0.5
@@ -30,7 +30,7 @@ class RegistrationState(LocalAuthState):
             return rx.set_focus("username")
         with rx.session() as session:
             existing_user = session.exec(
-                select(User).where(User.username == username)
+                select(LocalUser).where(LocalUser.username == username)
             ).one_or_none()
         if existing_user is not None:
             self.error_message = (
@@ -50,9 +50,9 @@ class RegistrationState(LocalAuthState):
     def _register_user(self, username, password) -> None:
         with rx.session() as session:
             # Create the new user and add it to the database.
-            new_user = User()  # type: ignore
+            new_user = LocalUser()  # type: ignore
             new_user.username = username
-            new_user.password_hash = User.hash_password(password)
+            new_user.password_hash = LocalUser.hash_password(password)
             new_user.enabled = True
             session.add(new_user)
             session.commit()

@@ -12,8 +12,8 @@ from sqlmodel import select
 
 import reflex as rx
 
-from .auth_session import AuthSession
-from .user import User
+from .auth_session import LocalAuthSession
+from .user import LocalUser
 
 
 AUTH_TOKEN_LOCAL_STORAGE_KEY = "_auth_token"
@@ -25,26 +25,26 @@ class LocalAuthState(rx.State):
     auth_token: str = rx.LocalStorage(name=AUTH_TOKEN_LOCAL_STORAGE_KEY)
 
     @rx.cached_var
-    def authenticated_user(self) -> User:
+    def authenticated_user(self) -> LocalUser:
         """The currently authenticated user, or a dummy user if not authenticated.
 
         Returns:
-            A User instance with id=-1 if not authenticated, or the User instance
+            A LocalUser instance with id=-1 if not authenticated, or the LocalUser instance
             corresponding to the currently authenticated user.
         """
         with rx.session() as session:
             result = session.exec(
-                select(User, AuthSession).where(
-                    AuthSession.session_id == self.auth_token,
-                    AuthSession.expiration
+                select(LocalUser, LocalAuthSession).where(
+                    LocalAuthSession.session_id == self.auth_token,
+                    LocalAuthSession.expiration
                     >= datetime.datetime.now(datetime.timezone.utc),
-                    User.id == AuthSession.user_id,
+                    LocalUser.id == LocalAuthSession.user_id,
                 ),
             ).first()
             if result:
                 user, session = result
                 return user
-        return User(id=-1)  # type: ignore
+        return LocalUser(id=-1)  # type: ignore
 
     @rx.cached_var
     def is_authenticated(self) -> bool:
@@ -56,10 +56,10 @@ class LocalAuthState(rx.State):
         return self.authenticated_user.id >= 0
 
     def do_logout(self) -> None:
-        """Destroy AuthSessions associated with the auth_token."""
+        """Destroy LocalAuthSessions associated with the auth_token."""
         with rx.session() as session:
             for auth_session in session.exec(
-                select(AuthSession).where(AuthSession.session_id == self.auth_token)
+                select(LocalAuthSession).where(LocalAuthSession.session_id == self.auth_token)
             ).all():
                 session.delete(auth_session)
             session.commit()
@@ -70,14 +70,14 @@ class LocalAuthState(rx.State):
         user_id: int,
         expiration_delta: datetime.timedelta = DEFAULT_AUTH_SESSION_EXPIRATION_DELTA,
     ) -> None:
-        """Create an AuthSession for the given user_id.
+        """Create an LocalAuthSession for the given user_id.
 
-        If the auth_token is already associated with an AuthSession, it will be
+        If the auth_token is already associated with an LocalAuthSession, it will be
         logged out first.
 
         Args:
-            user_id: The user ID to associate with the AuthSession.
-            expiration_delta: The amount of time before the AuthSession expires.
+            user_id: The user ID to associate with the LocalAuthSession.
+            expiration_delta: The amount of time before the LocalAuthSession expires.
         """
         if self.is_authenticated:
             self.do_logout()
@@ -86,7 +86,7 @@ class LocalAuthState(rx.State):
         self.auth_token = self.auth_token or self.router.session.client_token
         with rx.session() as session:
             session.add(
-                AuthSession(  # type: ignore
+                LocalAuthSession(  # type: ignore
                     user_id=user_id,
                     session_id=self.auth_token,
                     expiration=datetime.datetime.now(datetime.timezone.utc)

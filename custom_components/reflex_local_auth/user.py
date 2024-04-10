@@ -6,7 +6,7 @@ from sqlmodel import Field
 import reflex as rx
 
 
-class User(
+class LocalUser(
     rx.Model,
     table=True,  # type: ignore
 ):

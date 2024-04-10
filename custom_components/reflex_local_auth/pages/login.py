@@ -19,7 +19,7 @@ def login_error() -> rx.Component:
         LoginState.error_message != "",
         rx.callout(
             LoginState.error_message,
-            icon="alert_triangle",
+            icon="triangle_alert",
             color_scheme="red",
             role="alert",
             width="100%",

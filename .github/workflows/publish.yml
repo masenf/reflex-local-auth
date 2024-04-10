@@ -1,0 +1,21 @@
+name: Publish Component to PyPI
+
+on:
+  push:
+    tags:
+     - '*'
+
+jobs:
+  publish:
+    name: Publish Component to PyPI
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.12'
+    - name: Install package
+      run: pip install .
+    - name: Publish to PyPI
+      run: reflex component publish -t ${{ secrets.PYPI_TOKEN }} --no-share --no-validate-project-info

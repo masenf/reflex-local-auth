@@ -5,7 +5,7 @@ from sqlmodel import Column, DateTime, Field, func
 import reflex as rx
 
 
-class AuthSession(
+class LocalAuthSession(
     rx.Model,
     table=True,  # type: ignore
 ):

@@ -10,7 +10,7 @@ class UserInfo(rx.Model, table=True):
     email: str
     created_from_ip: str
 
-    user_id: int = sqlmodel.Field(foreign_key="user.id")
+    user_id: int = sqlmodel.Field(foreign_key="localuser.id")
 
 
 class MyLocalAuthState(reflex_local_auth.LocalAuthState):
@@ -52,7 +52,7 @@ def register_error() -> rx.Component:
         reflex_local_auth.RegistrationState.error_message != "",
         rx.callout(
             reflex_local_auth.RegistrationState.error_message,
-            icon="alert_triangle",
+            icon="triangle_alert",
             color_scheme="red",
             role="alert",
             width="100%",
