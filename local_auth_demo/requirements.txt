@@ -1,2 +1,2 @@
-reflex==0.4.3
+reflex>=0.4.3
 reflex_local_auth>=0.0.1
