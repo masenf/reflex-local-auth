@@ -90,7 +90,7 @@ def protected_page():
 
 ## Customization
 
-The basic `reflex_local_auth.User` model provides password hashing and
+The basic `reflex_local_auth.LocalUser` model provides password hashing and
 verification, and an enabled flag. Additional functionality can be added by
 creating a new `UserInfo` model and creating a foreign key relationship to the
 `user.id` field.
@@ -146,7 +146,7 @@ def register_error() -> rx.Component:
         reflex_local_auth.RegistrationState.error_message != "",
         rx.callout(
             reflex_local_auth.RegistrationState.error_message,
-            icon="alert_triangle",
+            icon="triangle_alert",
             color_scheme="red",
             role="alert",
             width="100%",
@@ -234,4 +234,21 @@ def user_info():
             ),
         ),
     )
+```
+
+## Migrating from 0.0.x to 0.1.x
+
+The `User` model has been renamed to `LocalUser` and the `AuthSession` model has
+been renamed to `LocalAuthSession`. If your app was using reflex-local-auth 0.0.x,
+then you will need to make manual changes to migration script to copy existing user
+data into the new tables _after_ running `reflex db makemigrations`.
+
+See [`local_auth_demo/alembic/version/cb01e050df85_.py`](local_auth_demo/alembic/version/cb01e050df85_.py) for an example migration script.
+
+Importantly, your `upgrade` function should include the following lines, after creating
+the new tables and before dropping the old tables:
+
+```python
+    op.execute("INSERT INTO localuser SELECT * FROM user;")
+    op.execute("INSERT INTO localauthsession SELECT * FROM authsession;")
 ```

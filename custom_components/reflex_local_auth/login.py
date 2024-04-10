@@ -6,7 +6,7 @@ from sqlmodel import select
 
 from . import routes
 from .local_auth import LocalAuthState
-from .user import User
+from .user import LocalUser
 
 
 class LoginState(LocalAuthState):
@@ -26,7 +26,7 @@ class LoginState(LocalAuthState):
         password = form_data["password"]
         with rx.session() as session:
             user = session.exec(
-                select(User).where(User.username == username)
+                select(LocalUser).where(LocalUser.username == username)
             ).one_or_none()
         if user is not None and not user.enabled:
             self.error_message = "This account is disabled."

@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reflex-local-auth"
-version = "0.0.3"
+version = "0.1.0"
 description = "Reflex custom component local-auth"
 readme = "README.md"
 license = { text = "Apache-2.0" }

@@ -19,7 +19,7 @@ def register_error() -> rx.Component:
         RegistrationState.error_message != "",
         rx.callout(
             RegistrationState.error_message,
-            icon="alert_triangle",
+            icon="triangle_alert",
             color_scheme="red",
             role="alert",
             width="100%",
