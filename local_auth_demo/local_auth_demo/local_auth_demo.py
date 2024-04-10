@@ -1,4 +1,5 @@
 """Main app module to demo local authentication."""
+
 import reflex as rx
 
 import reflex_local_auth
@@ -93,3 +94,6 @@ app.add_page(
     route=reflex_local_auth.routes.REGISTER_ROUTE,
     title="Register",
 )
+
+# Create the database if it does not exist (hosting service does not migrate automatically)
+rx.Model.migrate()
