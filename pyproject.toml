@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reflex-local-auth"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local DB user authentication for Reflex apps"
 readme = "README.md"
 license = { text = "Apache-2.0" }
