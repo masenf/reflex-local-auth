@@ -55,7 +55,7 @@ class LoginState(LocalAuthState):
         if not self.is_authenticated and page != routes.LOGIN_ROUTE:
             self.redirect_to = self.router.page.raw_path
             return rx.redirect(routes.LOGIN_ROUTE)
-        elif page == routes.LOGIN_ROUTE:
+        elif self.is_authenticated and page == routes.LOGIN_ROUTE:
             return rx.redirect(self.redirect_to or "/")
 
 
