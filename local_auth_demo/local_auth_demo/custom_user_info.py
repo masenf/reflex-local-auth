@@ -112,7 +112,7 @@ def register_page() -> rx.Component:
 @reflex_local_auth.require_login
 def user_info():
     return rx.vstack(
-        rx.text(f"Username: {MyLocalAuthState.authenticated_user.username}"),
+        rx.text(f"Username: {MyLocalAuthState.authenticated_local_user.username}"),
         rx.cond(
             MyLocalAuthState.authenticated_user_info,
             rx.fragment(
@@ -121,7 +121,7 @@ def user_info():
                     f"Account Created From: {MyLocalAuthState.authenticated_user_info.created_from_ip}"
                 ),
             ),
-            rx.text(f"No extra UserInfo for {MyLocalAuthState.authenticated_user.id}"),
+            rx.text(f"No extra UserInfo for {MyLocalAuthState.authenticated_local_user.id}"),
         ),
         align="center",
     )

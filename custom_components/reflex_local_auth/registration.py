@@ -8,14 +8,13 @@ import reflex as rx
 from sqlmodel import select
 
 from . import routes
-from .local_auth import LocalAuthState
 from .user import LocalUser
 
 
 POST_REGISTRATION_DELAY = 0.5
 
 
-class RegistrationState(LocalAuthState):
+class RegistrationState(rx.State):
     """Handle registration form submission and redirect to login page after registration."""
 
     success: bool = False

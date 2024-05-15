@@ -18,7 +18,7 @@ def links() -> rx.Component:
         rx.cond(
             reflex_local_auth.LocalAuthState.is_authenticated,
             rx.link(
-                "Logout", href="/", on_click=reflex_local_auth.LocalAuthState.do_logout
+                "Logout", href="/", on_click=rx.ReflexAuthState.do_logout
             ),
             rx.link("Login", href=reflex_local_auth.routes.LOGIN_ROUTE),
         ),
@@ -37,6 +37,8 @@ def index() -> rx.Component:
         rx.vstack(
             rx.heading("Welcome to my homepage!", font_size="2em"),
             links(),
+            rx.ReflexAuthState.authenticated_user.to_string(),
+            reflex_local_auth.LocalAuthState.authenticated_local_user.to_string(),
             spacing="2",
             padding_top="10%",
             align="center",
@@ -61,10 +63,11 @@ def need2login():
 class ProtectedState(reflex_local_auth.LocalAuthState):
     data: str
 
-    def on_load(self):
+    async def on_load(self):
         if not self.is_authenticated:
             return reflex_local_auth.LoginState.redir
-        self.data = f"This is truly private data for {self.authenticated_user.username}"
+        await self._validate_user()
+        self.data = f"This is truly private data for {self.authenticated_local_user.username}"
 
     def do_logout(self):
         self.data = ""
