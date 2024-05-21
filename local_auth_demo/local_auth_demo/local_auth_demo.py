@@ -33,7 +33,7 @@ def index() -> rx.Component:
         A reflex component.
     """
     return rx.fragment(
-        rx.color_mode.button(rx.color_mode.icon(), float="right"),
+        rx.color_mode.button(position="top-right"),
         rx.vstack(
             rx.heading("Welcome to my homepage!", font_size="2em"),
             links(),

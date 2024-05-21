@@ -10,12 +10,10 @@ def input_100w(name, **props) -> rx.Component:
     Returns:
         A reflex component.
     """
-    return rx.input.root(
-        rx.input(
-            placeholder=name.replace("_", " ").title(),
-            id=name,
-            name=name,
-            **props,
-        ),
+    return rx.input(
+        placeholder=name.replace("_", " ").title(),
+        id=name,
+        name=name,
         width="100%",
+        **props,
     )
