@@ -79,8 +79,7 @@ class LocalAuthState(rx.State):
             user_id: The user ID to associate with the LocalAuthSession.
             expiration_delta: The amount of time before the LocalAuthSession expires.
         """
-        if self.is_authenticated:
-            self.do_logout()
+        self.do_logout()
         if user_id < 0:
             return
         self.auth_token = self.auth_token or self.router.session.client_token
