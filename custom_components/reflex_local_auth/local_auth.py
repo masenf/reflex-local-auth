@@ -18,13 +18,14 @@ from .user import LocalUser
 
 AUTH_TOKEN_LOCAL_STORAGE_KEY = "_auth_token"
 DEFAULT_AUTH_SESSION_EXPIRATION_DELTA = datetime.timedelta(days=7)
+DEFAULT_AUTH_REFRESH_DELTA = datetime.timedelta(minutes=10)
 
 
 class LocalAuthState(rx.State):
     # The auth_token is stored in local storage to persist across tab and browser sessions.
     auth_token: str = rx.LocalStorage(name=AUTH_TOKEN_LOCAL_STORAGE_KEY)
 
-    @rx.cached_var
+    @rx.var(cache=True, interval=DEFAULT_AUTH_REFRESH_DELTA)
     def authenticated_user(self) -> LocalUser:
         """The currently authenticated user, or a dummy user if not authenticated.
 
@@ -46,7 +47,7 @@ class LocalAuthState(rx.State):
                 return user
         return LocalUser(id=-1)  # type: ignore
 
-    @rx.cached_var
+    @rx.var(cache=True, interval=DEFAULT_AUTH_REFRESH_DELTA)
     def is_authenticated(self) -> bool:
         """Whether the current user is authenticated.
 
