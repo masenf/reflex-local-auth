@@ -123,7 +123,7 @@ from reflex_local_auth.pages.components import input_100w, MIN_WIDTH, PADDING_TO
 class MyRegisterState(reflex_local_auth.RegistrationState):
     # This event handler must be named something besides `handle_registration`!!!
     def handle_registration_email(self, form_data):
-        registration_result = super().handle_registration(form_data)
+        registration_result = self.handle_registration(form_data)
         if self.new_user_id >= 0:
             with rx.session() as session:
                 session.add(
@@ -203,6 +203,8 @@ Finally you can create a substate of `reflex_local_auth.LocalAuthState` which fe
 the associated `UserInfo` record and makes it available to your app.
 
 ```python
+from typing import Optional
+
 import sqlmodel
 import reflex as rx
 import reflex_local_auth
@@ -210,7 +212,7 @@ import reflex_local_auth
 
 class MyLocalAuthState(reflex_local_auth.LocalAuthState):
     @rx.cached_var
-    def authenticated_user_info(self) -> UserInfo | None:
+    def authenticated_user_info(self) -> Optional[UserInfo]:
         if self.authenticated_user.id < 0:
             return
         with rx.session() as session:
