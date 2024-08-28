@@ -211,7 +211,7 @@ import reflex_local_auth
 
 
 class MyLocalAuthState(reflex_local_auth.LocalAuthState):
-    @rx.cached_var
+    @rx.var(cache=True)
     def authenticated_user_info(self) -> Optional[UserInfo]:
         if self.authenticated_user.id < 0:
             return
