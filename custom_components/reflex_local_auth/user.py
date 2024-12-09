@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import bcrypt
-from sqlmodel import Field
+from sqlmodel import Field, String
 
 import reflex as rx
 
@@ -12,7 +12,7 @@ class LocalUser(
 ):
     """A local User model with bcrypt password hashing."""
 
-    username: str = Field(unique=True, nullable=False, index=True)
+    username: str = Field(unique=True, nullable=False, index=True, sa_type=String(255))
     password_hash: bytes = Field(nullable=False)
     enabled: bool = False
 
