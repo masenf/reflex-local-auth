@@ -4,17 +4,16 @@ access it for verifying access to event handlers and computed vars.
 
 Your app may inherit from LocalAuthState, or it may access it via the `get_state` API.
 """
+
 from __future__ import annotations
 
 import datetime
 
-from sqlmodel import select
-
 import reflex as rx
+from sqlmodel import select
 
 from .auth_session import LocalAuthSession
 from .user import LocalUser
-
 
 AUTH_TOKEN_LOCAL_STORAGE_KEY = "_auth_token"
 DEFAULT_AUTH_SESSION_EXPIRATION_DELTA = datetime.timedelta(days=7)
@@ -54,13 +53,18 @@ class LocalAuthState(rx.State):
         Returns:
             True if the authenticated user has a positive user ID, False otherwise.
         """
-        return self.authenticated_user.id >= 0
+        return (
+            self.authenticated_user.id is not None and self.authenticated_user.id >= 0
+        )
 
-    def do_logout(self) -> None:
+    @rx.event
+    def do_logout(self):
         """Destroy LocalAuthSessions associated with the auth_token."""
         with rx.session() as session:
             for auth_session in session.exec(
-                select(LocalAuthSession).where(LocalAuthSession.session_id == self.auth_token)
+                select(LocalAuthSession).where(
+                    LocalAuthSession.session_id == self.auth_token
+                )
             ).all():
                 session.delete(auth_session)
             session.commit()

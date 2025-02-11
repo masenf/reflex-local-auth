@@ -1,21 +1,59 @@
-name: Publish Component to PyPI
+name: Publish Component and Deploy Demo App
 
 on:
-  push:
-    tags:
-     - '*'
+  release:
+    types: [published]
+
+env:
+  EXTRA_ARGS: "--hostname ${{ vars.HOSTNAME }}"
 
 jobs:
   publish:
     name: Publish Component to PyPI
     runs-on: ubuntu-latest
+    env:
+      HAS_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN != '' }}
     steps:
-    - uses: actions/checkout@master
-    - name: Set up Python 3.12
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.12'
-    - name: Install package
-      run: pip install .
-    - name: Publish to PyPI
-      run: reflex component publish -t ${{ secrets.PYPI_TOKEN }} --no-share --no-validate-project-info
+      - uses: actions/checkout@master
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: pip install . 'reflex>=0.7.0a3'
+      - name: Publish to PyPI
+        if: ${{ env.HAS_PYPI_TOKEN == 'true' }}
+        run: reflex component publish -t ${{ secrets.PYPI_TOKEN }} --no-share --no-validate-project-info
+  deploy:
+    name: Deploy Demo App to Reflex Cloud
+    runs-on: ubuntu-latest
+    needs: publish
+    env:
+      HAS_REFLEX_AUTH_TOKEN: ${{ secrets.REFLEX_AUTH_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@master
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
+      - name: Set tagged version for deploy
+        run: sed -E 's/^${{ vars.COMPONENT_NAME }}([ >=].*)?$/${{ vars.COMPONENT_NAME }}==${{ github.event.release.tag_name }}/' -i ${{ vars.APP_DIRECTORY }}/requirements.txt
+      - name: Allow pre-release version of reflex
+        run: sed -E 's/(reflex[ >=][^a]*$)/\1a/' -i ${{ vars.APP_DIRECTORY }}/requirements.txt
+      - name: Wait for package to become available
+        uses: masenf/wait-for-pypi-action@main
+        with:
+          package_name: ${{ vars.COMPONENT_NAME}}
+          package_version: ${{ github.event.release.tag_name }}
+          timeout: "120"
+          delay_between_requests: "5"
+      - name: Deploy to ReflexCloud
+        uses: reflex-dev/reflex-deploy-action@v2
+        if: ${{ env.HAS_REFLEX_AUTH_TOKEN == 'true' }}
+        with:
+          auth_token: ${{ secrets.REFLEX_AUTH_TOKEN }}
+          project_id: ${{ secrets.REFLEX_PROJECT_ID }}
+          app_directory: ${{ vars.APP_DIRECTORY }}
+          extra_args: ${{ env.EXTRA_ARGS }}
+          dry_run: ${{ vars.DRY_RUN }}
+          skip_checkout: "true"

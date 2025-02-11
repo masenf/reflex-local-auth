@@ -1,7 +1,6 @@
 """Main app module to demo local authentication."""
 
 import reflex as rx
-
 import reflex_local_auth
 
 from . import custom_user_info as custom_user_info
@@ -18,7 +17,9 @@ def links() -> rx.Component:
         rx.cond(
             reflex_local_auth.LocalAuthState.is_authenticated,
             rx.link(
-                "Logout", href="/", on_click=reflex_local_auth.LocalAuthState.do_logout
+                "Logout",
+                href="/",
+                on_click=reflex_local_auth.LocalAuthState.do_logout,
             ),
             rx.link("Login", href=reflex_local_auth.routes.LOGIN_ROUTE),
         ),
@@ -61,11 +62,13 @@ def need2login():
 class ProtectedState(reflex_local_auth.LocalAuthState):
     data: str
 
+    @rx.event
     def on_load(self):
         if not self.is_authenticated:
             return reflex_local_auth.LoginState.redir
         self.data = f"This is truly private data for {self.authenticated_user.username}"
 
+    @rx.event
     def do_logout(self):
         self.data = ""
         return reflex_local_auth.LocalAuthState.do_logout
