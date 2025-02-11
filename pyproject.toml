@@ -1,30 +1,28 @@
 [build-system]
-requires = [
-    "setuptools",
-    "wheel",
-]
+requires = ["setuptools", "wheel", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "reflex-local-auth"
-version = "0.2.2"
 description = "Local DB user authentication for Reflex apps"
 readme = "README.md"
 license = { text = "Apache-2.0" }
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [{ name = "Masen Furer", email = "m_github@0x26.net" }]
 keywords = [
     "reflex",
     "reflex-custom-components"]
 
 dependencies = [
-    "reflex>=0.5.9",
+    "reflex>=0.7.0a3",
     "bcrypt",
 ]
 
 classifiers = [
   "Development Status :: 4 - Beta",
 ]
+
+dynamic = ["version"]
 
 [project.urls]
 Homepage = "https://github.com/masenf/reflex-local-auth"
@@ -34,3 +32,23 @@ dev = ["build", "twine"]
 
 [tool.setuptools.packages.find]
 where = ["custom_components"]
+
+[tool.ruff]
+target-version = "py310"
+output-format = "concise"
+lint.isort.split-on-trailing-comma = false
+lint.select = ["B", "C4", "E", "ERA", "F", "FURB", "I", "N", "PERF", "PTH", "RUF", "SIM", "T", "TRY", "W"]
+lint.ignore = ["B008", "D205", "E501", "F403", "SIM115", "RUF006", "RUF008", "RUF012", "TRY0"]
+lint.pydocstyle.convention = "google"
+include = ["custom_components/**/*.py", "*_demo/**/*.py"]
+exclude = ["*/alembic/*"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"env.py" = ["ALL"]
+"*/alembic/**/*.py" = ["ALL"]
+
+[tool.pyright]
+exclude = ["*/alembic/*"]
+
+[tool.setuptools_scm]

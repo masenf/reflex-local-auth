@@ -1,7 +1,6 @@
-from . import pages
-from . import routes
+from . import pages, routes
 from .local_auth import LocalAuthState
-from .login import require_login, LoginState
+from .login import LoginState, require_login
 from .registration import RegistrationState
 from .routes import set_login_route, set_register_route
 from .user import LocalUser
@@ -12,8 +11,8 @@ __all__ = [
     "LoginState",
     "RegistrationState",
     "pages",
-    "routes",
     "require_login",
+    "routes",
     "set_login_route",
     "set_register_route",
 ]

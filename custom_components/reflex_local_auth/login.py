@@ -1,5 +1,8 @@
 """Login state and authentication logic."""
+
 from __future__ import annotations
+
+from typing import Any
 
 import reflex as rx
 from sqlmodel import select
@@ -15,7 +18,8 @@ class LoginState(LocalAuthState):
     error_message: str = ""
     redirect_to: str = ""
 
-    def on_submit(self, form_data) -> rx.event.EventSpec:
+    @rx.event
+    def on_submit(self, form_data: dict[str, Any]):
         """Handle login form on_submit.
 
         Args:
@@ -46,7 +50,8 @@ class LoginState(LocalAuthState):
         self.error_message = ""
         return LoginState.redir()  # type: ignore
 
-    def redir(self) -> rx.event.EventSpec | None:
+    @rx.event
+    def redir(self):
         """Redirect to the redirect_to route if logged in, or to the login page if not."""
         if not self.is_hydrated:
             # wait until after hydration to ensure auth_token is known

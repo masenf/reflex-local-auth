@@ -1,16 +1,17 @@
 """New user registration validation and database logic."""
+
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import reflex as rx
-
+from reflex.event import EventSpec
 from sqlmodel import select
 
 from . import routes
 from .local_auth import LocalAuthState
 from .user import LocalUser
-
 
 POST_REGISTRATION_DELAY = 0.5
 
@@ -24,7 +25,7 @@ class RegistrationState(LocalAuthState):
 
     def _validate_fields(
         self, username, password, confirm_password
-    ) -> rx.event.EventSpec | list[rx.event.EventSpec] | None:
+    ) -> EventSpec | list[EventSpec] | None:
         if not username:
             self.error_message = "Username cannot be empty"
             return rx.set_focus("username")
@@ -57,11 +58,14 @@ class RegistrationState(LocalAuthState):
             session.add(new_user)
             session.commit()
             session.refresh(new_user)
-            self.new_user_id = new_user.id
+            if new_user.id is not None:
+                self.new_user_id = new_user.id
 
+    @rx.event
     def handle_registration(
-        self, form_data
-    ) -> rx.event.EventSpec | list[rx.event.EventSpec]:
+        self,
+        form_data: dict[str, Any],
+    ):
         """Handle registration form on_submit.
 
         Set error_message appropriately based on validation results.
@@ -80,15 +84,28 @@ class RegistrationState(LocalAuthState):
         self._register_user(username, password)
         return type(self).successful_registration
 
-    async def successful_registration(self):
+    @rx.event
+    def set_success(self, success: bool):
+        """Set the success flag.
+
+        Args:
+            success: Whether the registration was successful.
+        """
+        self.success = success
+
+    @rx.event
+    async def successful_registration(
+        self,
+    ):
         # Set success and redirect to login page after a brief delay.
         self.error_message = ""
         self.new_user_id = -1
         self.success = True
         yield
         await asyncio.sleep(POST_REGISTRATION_DELAY)
-        yield [rx.redirect(routes.LOGIN_ROUTE), RegistrationState.set_success(False)]
+        yield [rx.redirect(routes.LOGIN_ROUTE), type(self).set_success(False)]
 
+    @rx.event
     def redir(self):
         """Redirect to the registration form."""
         return rx.redirect(routes.REGISTER_ROUTE)

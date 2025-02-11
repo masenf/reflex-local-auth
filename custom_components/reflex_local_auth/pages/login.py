@@ -6,11 +6,12 @@ app.add_page(
     title="Login",
 )
 """
+
 import reflex as rx
 
 from ..login import LoginState
 from ..registration import RegistrationState
-from .components import input_100w, MIN_WIDTH, PADDING_TOP
+from .components import MIN_WIDTH, PADDING_TOP, input_100w
 
 
 def login_error() -> rx.Component:

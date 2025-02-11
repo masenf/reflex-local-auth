@@ -1,9 +1,9 @@
-from typing import Optional
+from typing import Any, Optional
 
-import sqlmodel
 import reflex as rx
 import reflex_local_auth
-from reflex_local_auth.pages.components import input_100w, MIN_WIDTH, PADDING_TOP
+import sqlmodel
+from reflex_local_auth.pages.components import MIN_WIDTH, PADDING_TOP, input_100w
 
 
 class UserInfo(rx.Model, table=True):
@@ -16,7 +16,7 @@ class UserInfo(rx.Model, table=True):
 class MyLocalAuthState(reflex_local_auth.LocalAuthState):
     @rx.var(cache=True)
     def authenticated_user_info(self) -> Optional[UserInfo]:
-        if self.authenticated_user.id < 0:
+        if self.authenticated_user.id is not None and self.authenticated_user.id < 0:
             return
         with rx.session() as session:
             return session.exec(
@@ -27,7 +27,8 @@ class MyLocalAuthState(reflex_local_auth.LocalAuthState):
 
 
 class MyRegisterState(reflex_local_auth.RegistrationState):
-    def handle_registration_email(self, form_data):
+    @rx.event
+    def handle_registration_email(self, form_data: dict[str, Any]):
         registration_result = self.handle_registration(form_data)
         if self.new_user_id >= 0:
             with rx.session() as session:
