@@ -15,15 +15,13 @@ jobs:
       HAS_PYPI_TOKEN: ${{ secrets.PYPI_TOKEN != '' }}
     steps:
       - uses: actions/checkout@master
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v3
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
-      - name: Install package
-        run: pip install . 'reflex>=0.7.0a3'
       - name: Publish to PyPI
         if: ${{ env.HAS_PYPI_TOKEN == 'true' }}
-        run: reflex component publish -t ${{ secrets.PYPI_TOKEN }} --no-share --no-validate-project-info
+        run: uv build && uv publish -u __token__ -p ${{ secrets.PYPI_TOKEN }}
   deploy:
     name: Deploy Demo App to Reflex Cloud
     runs-on: ubuntu-latest
