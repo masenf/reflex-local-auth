@@ -1,3 +1,3 @@
 reflex>=0.6.0a3
 reflex-chakra>=0.6.0a
-reflex_local_auth>=0.2.0
+reflex-local-auth>=0.2.0
