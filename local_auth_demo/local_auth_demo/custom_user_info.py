@@ -14,7 +14,7 @@ class UserInfo(rx.Model, table=True):
 
 
 class MyLocalAuthState(reflex_local_auth.LocalAuthState):
-    @rx.var(cache=True)
+    @rx.var(cache=True, initial_value=None)
     def authenticated_user_info(self) -> Optional[UserInfo]:
         if self.authenticated_user.id is not None and self.authenticated_user.id < 0:
             return
