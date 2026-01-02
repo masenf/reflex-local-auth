@@ -9,14 +9,34 @@ from sqlmodel import select
 
 from . import routes
 from .local_auth import LocalAuthState
+from .middleware import is_safe_redirect_url
 from .user import LocalUser
 
 
 class LoginState(LocalAuthState):
-    """Handle login form submission and redirect to proper routes after authentication."""
+    """Handle login form submission and redirect to proper routes after authentication.
+
+    Features:
+        - Secure password validation
+        - ?next= parameter support for return URLs
+        - HttpOnly cookie sync for server-side auth
+    """
 
     error_message: str = ""
     redirect_to: str = ""
+
+    @rx.var
+    def next_url(self) -> str:
+        """Get the next URL from query params for post-login redirect.
+
+        Returns:
+            The validated next URL or empty string if invalid.
+        """
+        # Use router.url.query_parameters for Reflex 0.8.x
+        next_param = self.router.url.query_parameters.get("next", "")
+        if next_param and is_safe_redirect_url(next_param):
+            return next_param
+        return ""
 
     @rx.event
     def on_submit(self, form_data: dict[str, Any]):
@@ -52,7 +72,10 @@ class LoginState(LocalAuthState):
 
     @rx.event
     def redir(self):
-        """Redirect to the redirect_to route if logged in, or to the login page if not."""
+        """Redirect to the redirect_to route if logged in, or to the login page if not.
+
+        This method supports the ?next= parameter for post-login redirects.
+        """
         if not self.is_hydrated:
             # wait until after hydration to ensure auth_token is known
             return LoginState.redir()  # type: ignore
@@ -61,7 +84,9 @@ class LoginState(LocalAuthState):
             self.redirect_to = current_route
             return rx.redirect(routes.LOGIN_ROUTE)
         elif self.is_authenticated and current_route == routes.LOGIN_ROUTE:
-            return rx.redirect(self.redirect_to or "/")
+            # Priority: ?next= param > redirect_to > default
+            redirect_target = self.next_url or self.redirect_to or "/"
+            return rx.redirect(redirect_target)
 
 
 def require_login(page: rx.app.ComponentCallable) -> rx.app.ComponentCallable:
