@@ -1,15 +1,15 @@
 import datetime
 
-import reflex as rx
-from sqlmodel import Column, DateTime, Field, String, func
+from sqlmodel import Column, DateTime, Field, SQLModel, String, func
 
 
 class LocalAuthSession(
-    rx.Model,
+    SQLModel,
     table=True,  # type: ignore
 ):
     """Correlate a session_id with an arbitrary user_id."""
 
+    id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(index=True, nullable=False)
     session_id: str = Field(
         unique=True,

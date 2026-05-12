@@ -2,6 +2,7 @@
 
 import reflex as rx
 import reflex_local_auth
+from reflex.model import migrate
 
 from . import custom_user_info as custom_user_info
 
@@ -86,7 +87,7 @@ def protected():
     )
 
 
-app = rx.App(theme=rx.theme(has_background=True, accent_color="orange"))
+app = rx.App()
 app.add_page(
     reflex_local_auth.pages.login_page,
     route=reflex_local_auth.routes.LOGIN_ROUTE,
@@ -99,4 +100,4 @@ app.add_page(
 )
 
 # Create the database if it does not exist (hosting service does not migrate automatically)
-rx.Model.migrate()
+migrate()
