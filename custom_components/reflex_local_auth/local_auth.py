@@ -27,7 +27,7 @@ class LocalAuthState(rx.State):
     @rx.var(
         cache=True,
         interval=DEFAULT_AUTH_REFRESH_DELTA,
-        initial_value=LocalUser(id=-1),
+        initial_value=LocalUser(id=-1),  # pyright: ignore[reportCallIssue]
     )
     def authenticated_user(self) -> LocalUser:
         """The currently authenticated user, or a dummy user if not authenticated.

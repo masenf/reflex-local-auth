@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import bcrypt
-import reflex as rx
-from sqlmodel import Field, String
+from sqlmodel import Field, SQLModel, String
 
 
 class LocalUser(
-    rx.Model,
+    SQLModel,
     table=True,  # type: ignore
 ):
     """A local User model with bcrypt password hashing."""
 
+    id: int | None = Field(default=None, primary_key=True)
     username: str = Field(
         unique=True,
         nullable=False,
@@ -49,9 +49,9 @@ class LocalUser(
             hashed_password=self.password_hash,
         )
 
-    def dict(self, *args, **kwargs) -> dict:
+    def model_dump(self, *args, **kwargs) -> dict:
         """Return a dictionary representation of the user."""
-        d = super().dict(*args, **kwargs)
+        d = super().model_dump(*args, **kwargs)
         # Never return the hash when serializing to the frontend.
         d.pop("password_hash", None)
         return d

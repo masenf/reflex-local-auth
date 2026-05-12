@@ -14,7 +14,7 @@ keywords = [
     "reflex-custom-components"]
 
 dependencies = [
-    "reflex>=0.8.1",
+    "reflex[db]>=0.8.1",
     "bcrypt",
 ]
 

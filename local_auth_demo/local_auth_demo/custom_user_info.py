@@ -6,7 +6,8 @@ import sqlmodel
 from reflex_local_auth.pages.components import MIN_WIDTH, PADDING_TOP, input_100w
 
 
-class UserInfo(rx.Model, table=True):
+class UserInfo(sqlmodel.SQLModel, table=True):
+    id: int | None = sqlmodel.Field(default=None, primary_key=True)
     email: str
     created_from_ip: str
 
