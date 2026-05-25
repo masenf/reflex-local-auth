@@ -2,6 +2,14 @@
 
 Easy access to local authentication in your [Reflex](https://reflex.dev) app.
 
+## Features
+
+- **Local User Management**: Create, authenticate, and manage users with bcrypt password hashing
+- **Session Management**: Secure session tokens with configurable expiration
+- **HttpOnly Cookie Support**: Protect against XSS attacks with server-side authentication (NEW!)
+- **ASGI Middleware**: Server-side route protection that eliminates content flash (NEW!)
+- **Return URL Support**: `?next=` parameter for post-login redirects (NEW!)
+
 ## Installation
 
 ```bash
@@ -55,6 +63,93 @@ def need2login(request):
 Although this _seems_ to protect the content, it is still publicly accessible
 when viewing the source code for the page! This should be considered a mechanism
 to redirect users to the login page, NOT a way to protect data.
+
+### Server-Side Authentication with Middleware (Recommended)
+
+For production applications, use the `AuthMiddleware` with the Auth API to validate
+authentication on the server **before** any page content is sent to the browser. This:
+
+1. **Eliminates content flash**: Users never see protected pages before redirect
+2. **Protects against XSS**: Uses HttpOnly cookies that JavaScript cannot access
+3. **Supports return URLs**: The `?next=` parameter remembers where users were going
+
+```python
+import reflex as rx
+import reflex_local_auth
+
+# Configure the middleware (optional)
+reflex_local_auth.configure_middleware(
+    public_routes={"/login", "/register", "/about"},  # Routes that don't require auth
+    login_route="/login",
+    default_authenticated_route="/dashboard",
+    cookie_secure=True,  # Set to True in production with HTTPS
+)
+
+# Add middleware AND auth API to your app
+app = rx.App(
+    api_transformer=lambda api: reflex_local_auth.setup_auth_api(
+        reflex_local_auth.AuthMiddleware(api)
+    ),
+)
+```
+
+### Authentication API Endpoints
+
+The library provides REST API endpoints for authentication that set true HttpOnly
+cookies (not accessible by JavaScript):
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/login` | POST | Authenticate and set HttpOnly session cookie |
+| `/api/auth/logout` | POST | Clear session cookie and invalidate session |
+| `/api/auth/me` | GET | Get current authenticated user info |
+
+**Login Request:**
+```javascript
+const response = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'user', password: 'pass' }),
+    credentials: 'include'  // Important: include cookies
+});
+const data = await response.json();
+// { success: true, message: "Login successful", user_id: 1, username: "user" }
+```
+
+**Check Authentication:**
+```javascript
+const response = await fetch('/api/auth/me', { credentials: 'include' });
+const data = await response.json();
+// { authenticated: true, user_id: 1, username: "user", enabled: true }
+```
+
+**Logout:**
+```javascript
+await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+```
+
+**How it works:**
+
+```
+Without Middleware (flash):
+  Request → Server sends HTML → Browser renders → JavaScript checks auth → Redirect
+                                      ↑ FLASH
+
+With Middleware (no flash):
+  Request → Middleware checks cookie → [Valid: Serve page] or [Invalid: HTTP 302 redirect]
+                                        ↑ No content sent before auth check
+```
+
+**Configuration Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `public_routes` | `{"/login", "/register", ...}` | Routes that don't require authentication |
+| `public_prefixes` | `("/_next/", "/static/", ...)` | URL prefixes that don't require auth |
+| `login_route` | `"/login"` | Where to redirect unauthenticated users |
+| `default_authenticated_route` | `"/"` | Where to redirect authenticated users from login page |
+| `cookie_secure` | `False` | Set `True` in production (requires HTTPS) |
+| `enabled` | `True` | Enable/disable the middleware |
 
 ### Protect State
 
@@ -254,3 +349,178 @@ the new tables and before dropping the old tables:
     op.execute("INSERT INTO localuser SELECT * FROM user;")
     op.execute("INSERT INTO localauthsession SELECT * FROM authsession;")
 ```
+
+## Security Best Practices
+
+### Authentication Architecture
+
+The library uses a dual-storage pattern for optimal security and compatibility:
+
+| Storage | Purpose | XSS Protection |
+|---------|---------|----------------|
+| localStorage | Reflex WebSocket auth & state hydration | Vulnerable |
+| HttpOnly Cookie | Server-side middleware validation | Protected |
+
+**Why dual storage?**
+- Reflex requires localStorage for its internal WebSocket authentication
+- HttpOnly cookies cannot be read by JavaScript (XSS protection)
+- The middleware validates the HttpOnly cookie before serving pages
+- Even if localStorage is compromised via XSS, protected routes remain secure
+
+### Recommended Production Setup
+
+```python
+import reflex as rx
+import reflex_local_auth
+
+# 1. Configure middleware for production
+reflex_local_auth.configure_middleware(
+    cookie_secure=True,  # Requires HTTPS
+    public_routes={"/login", "/register"},
+)
+
+# 2. Add BOTH middleware AND auth API to app
+app = rx.App(
+    api_transformer=lambda api: reflex_local_auth.setup_auth_api(
+        reflex_local_auth.AuthMiddleware(api)
+    ),
+)
+
+# 3. Still use @require_login as defense-in-depth
+@rx.page()
+@reflex_local_auth.require_login
+def protected_page():
+    return rx.text("Protected content")
+```
+
+### Using the Auth API from Custom Login Forms
+
+For full security, your login flow should:
+1. Call the API to set the HttpOnly cookie (middleware protection)
+2. Set localStorage token for Reflex state compatibility
+
+**Complete Login Example:**
+
+```python
+import reflex as rx
+import reflex_local_auth
+
+class MyLoginState(reflex_local_auth.LocalAuthState):
+    error_message: str = ""
+    is_loading: bool = False
+
+    @rx.event
+    def handle_submit(self, form_data: dict):
+        """Handle login form submission."""
+        self.is_loading = True
+        self.error_message = ""
+
+        # The login is handled in two parts:
+        # 1. JavaScript calls /api/auth/login to set HttpOnly cookie
+        # 2. On success, we call _login() to set localStorage
+        yield rx.call_script(
+            f"""
+            fetch('/api/auth/login', {{
+                method: 'POST',
+                headers: {{'Content-Type': 'application/json'}},
+                credentials: 'include',
+                body: JSON.stringify({{
+                    username: '{form_data.get("username", "")}',
+                    password: '{form_data.get("password", "")}'
+                }})
+            }})
+            .then(r => r.json())
+            .then(data => {{
+                if (data.success) {{
+                    // Dispatch event to complete login in Reflex state
+                    window.dispatchEvent(new CustomEvent('login_success',
+                        {{detail: {{user_id: data.user_id}}}}));
+                }} else {{
+                    window.dispatchEvent(new CustomEvent('login_error',
+                        {{detail: {{message: data.message}}}}));
+                }}
+            }})
+            """
+        )
+
+    @rx.event
+    def on_login_success(self, user_id: int):
+        """Complete login by setting localStorage."""
+        self._login(user_id)
+        self.is_loading = False
+        return rx.redirect("/dashboard")
+
+    @rx.event
+    def on_login_error(self, message: str):
+        """Handle login error."""
+        self.error_message = message
+        self.is_loading = False
+```
+
+**Complete Logout Example:**
+
+```python
+    @rx.event
+    def handle_logout(self):
+        """Logout from both HttpOnly cookie and localStorage."""
+        # 1. Clear localStorage (Reflex state)
+        self.do_logout()
+
+        # 2. Clear HttpOnly cookie via API
+        yield rx.call_script(
+            """
+            fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+            }).then(() => {
+                window.location.href = '/login';
+            });
+            """
+        )
+```
+
+### Open Redirect Prevention
+
+The `?next=` parameter is validated to prevent open redirect attacks:
+- Only relative URLs are allowed (must start with `/`)
+- Protocol injection is blocked (`://`)
+- Path traversal is blocked (`..`)
+
+**Important:** When handling the `next` parameter after login, always validate it:
+
+```python
+import reflex_local_auth
+
+class LoginState(rx.State):
+    def handle_login_success(self):
+        # Get next parameter from URL
+        next_url = self.router.page.params.get("next", "/dashboard")
+
+        # ALWAYS validate before redirecting
+        if reflex_local_auth.is_safe_redirect_url(next_url):
+            return rx.redirect(next_url)
+        else:
+            return rx.redirect("/dashboard")  # Fallback to safe default
+```
+
+### Rate Limiting
+
+Login attempts are rate limited to prevent brute force attacks:
+- Maximum 5 attempts per 5-minute window
+- 15-minute lockout after exceeding limit
+- Rate limit clears on successful login
+
+Rate-limited requests receive HTTP 429 with a `Retry-After` header.
+
+**Note:** Rate limiting uses in-memory storage, which means:
+- Limits reset on server restart
+- In multi-worker deployments, each worker has separate limits
+- For production with high-security requirements, consider adding Redis-backed rate limiting
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+## License
+
+MIT License
