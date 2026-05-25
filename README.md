@@ -245,7 +245,7 @@ been renamed to `LocalAuthSession`. If your app was using reflex-local-auth 0.0.
 then you will need to make manual changes to migration script to copy existing user
 data into the new tables _after_ running `reflex db makemigrations`.
 
-See [`local_auth_demo/alembic/version/cb01e050df85_.py`](local_auth_demo/alembic/version/cb01e050df85_.py) for an example migration script.
+See [`local_auth_demo/alembic/versions/cb01e050df85_.py`](local_auth_demo/alembic/versions/cb01e050df85_.py) for an example migration script.
 
 Importantly, your `upgrade` function should include the following lines, after creating
 the new tables and before dropping the old tables:
