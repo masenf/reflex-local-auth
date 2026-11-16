@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import reflex as rx
@@ -19,8 +20,11 @@ class LoginState(LocalAuthState):
     redirect_to: str = ""
 
     @rx.event
-    def on_submit(self, form_data: dict[str, Any]):
+    async def on_submit(self, form_data: dict[str, Any]):
         """Handle login form on_submit.
+
+        The database lookup and bcrypt password check run in a worker thread to
+        avoid blocking the event loop.
 
         Args:
             form_data: A dict of form fields and values.
@@ -28,10 +32,7 @@ class LoginState(LocalAuthState):
         self.error_message = ""
         username = form_data["username"]
         password = form_data["password"]
-        with rx.session() as session:
-            user = session.exec(
-                select(LocalUser).where(LocalUser.username == username)
-            ).one_or_none()
+        user = await asyncio.to_thread(_get_user_by_username, username)
         if user is not None and not user.enabled:
             self.error_message = "This account is disabled."
             return rx.set_value("password", "")
@@ -40,10 +41,10 @@ class LoginState(LocalAuthState):
             and user.id is not None
             and user.enabled
             and password
-            and user.verify(password)
+            and await user.averify(password)
         ):
             # mark the user as logged in
-            self._login(user.id)
+            await self._login(user.id)
         else:
             self.error_message = "There was a problem logging in, please try again."
             return rx.set_value("password", "")
@@ -62,6 +63,21 @@ class LoginState(LocalAuthState):
             return rx.redirect(routes.LOGIN_ROUTE)
         elif self.is_authenticated and current_route == routes.LOGIN_ROUTE:
             return rx.redirect(self.redirect_to or "/")
+
+
+def _get_user_by_username(username: str) -> LocalUser | None:
+    """Look up a LocalUser by username (blocking).
+
+    Args:
+        username: The username to look up.
+
+    Returns:
+        The matching LocalUser, or None.
+    """
+    with rx.session() as session:
+        return session.exec(
+            select(LocalUser).where(LocalUser.username == username)
+        ).one_or_none()
 
 
 def require_login(page: rx.app.ComponentCallable) -> rx.app.ComponentCallable:

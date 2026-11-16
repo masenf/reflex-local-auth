@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import bcrypt
 from sqlmodel import Field, SQLModel, String
 
@@ -48,6 +50,33 @@ class LocalUser(
             password=secret.encode("utf-8"),
             hashed_password=self.password_hash,
         )
+
+    @classmethod
+    async def ahash_password(cls, secret: str) -> bytes:
+        """Hash the secret using bcrypt in a worker thread.
+
+        bcrypt is deliberately slow, so this keeps it off the event loop.
+
+        Args:
+            secret: The password to hash.
+
+        Returns:
+            The hashed password.
+        """
+        return await asyncio.to_thread(cls.hash_password, secret)
+
+    async def averify(self, secret: str) -> bool:
+        """Validate the user's password in a worker thread.
+
+        bcrypt is deliberately slow, so this keeps it off the event loop.
+
+        Args:
+            secret: The password to check.
+
+        Returns:
+            True if the hashed secret matches this user's password_hash.
+        """
+        return await asyncio.to_thread(self.verify, secret)
 
     def model_dump(self, *args, **kwargs) -> dict:
         """Return a dictionary representation of the user."""

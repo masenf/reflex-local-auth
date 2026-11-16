@@ -7,6 +7,7 @@ Your app may inherit from LocalAuthState, or it may access it via the `get_state
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 
 import reflex as rx
@@ -66,19 +67,12 @@ class LocalAuthState(rx.State):
         )
 
     @rx.event
-    def do_logout(self):
+    async def do_logout(self):
         """Destroy LocalAuthSessions associated with the auth_token."""
-        with rx.session() as session:
-            for auth_session in session.exec(
-                select(LocalAuthSession).where(
-                    LocalAuthSession.session_id == self.auth_token
-                )
-            ).all():
-                session.delete(auth_session)
-            session.commit()
+        await asyncio.to_thread(_delete_auth_sessions, self.auth_token)
         self.auth_token = self.auth_token
 
-    def _login(
+    async def _login(
         self,
         user_id: int,
         expiration_delta: datetime.timedelta = DEFAULT_AUTH_SESSION_EXPIRATION_DELTA,
@@ -92,17 +86,49 @@ class LocalAuthState(rx.State):
             user_id: The user ID to associate with the LocalAuthSession.
             expiration_delta: The amount of time before the LocalAuthSession expires.
         """
-        self.do_logout()
+        await asyncio.to_thread(_delete_auth_sessions, self.auth_token)
+        self.auth_token = self.auth_token
         if user_id < 0:
             return
         self.auth_token = self.auth_token or self.router.session.client_token
-        with rx.session() as session:
-            session.add(
-                LocalAuthSession(  # type: ignore
-                    user_id=user_id,
-                    session_id=self.auth_token,
-                    expiration=datetime.datetime.now(datetime.timezone.utc)
-                    + expiration_delta,
-                )
+        await asyncio.to_thread(
+            _create_auth_session,
+            user_id=user_id,
+            session_id=self.auth_token,
+            expiration=datetime.datetime.now(datetime.timezone.utc) + expiration_delta,
+        )
+
+
+def _delete_auth_sessions(session_id: str) -> None:
+    """Delete all LocalAuthSessions for the given session_id (blocking).
+
+    Args:
+        session_id: The auth token whose sessions should be removed.
+    """
+    with rx.session() as session:
+        for auth_session in session.exec(
+            select(LocalAuthSession).where(LocalAuthSession.session_id == session_id)
+        ).all():
+            session.delete(auth_session)
+        session.commit()
+
+
+def _create_auth_session(
+    user_id: int, session_id: str, expiration: datetime.datetime
+) -> None:
+    """Persist a new LocalAuthSession (blocking).
+
+    Args:
+        user_id: The user ID to associate with the session.
+        session_id: The auth token identifying the client.
+        expiration: When the session expires.
+    """
+    with rx.session() as session:
+        session.add(
+            LocalAuthSession(  # type: ignore
+                user_id=user_id,
+                session_id=session_id,
+                expiration=expiration,
             )
-            session.commit()
+        )
+        session.commit()
