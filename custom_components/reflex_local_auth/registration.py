@@ -23,17 +23,13 @@ class RegistrationState(LocalAuthState):
     error_message: str = ""
     new_user_id: int = -1
 
-    def _validate_fields(
+    async def _validate_fields(
         self, username, password, confirm_password
     ) -> EventSpec | list[EventSpec] | None:
         if not username:
             self.error_message = "Username cannot be empty"
             return rx.set_focus("username")
-        with rx.session() as session:
-            existing_user = session.exec(
-                select(LocalUser).where(LocalUser.username == username)
-            ).one_or_none()
-        if existing_user is not None:
+        if await asyncio.to_thread(_username_exists, username):
             self.error_message = (
                 f"Username {username} is already registered. Try a different name"
             )
@@ -48,40 +44,37 @@ class RegistrationState(LocalAuthState):
                 rx.set_focus("confirm_password"),
             ]
 
-    def _register_user(self, username, password) -> None:
-        with rx.session() as session:
-            # Create the new user and add it to the database.
-            new_user = LocalUser()  # type: ignore
-            new_user.username = username
-            new_user.password_hash = LocalUser.hash_password(password)
-            new_user.enabled = True
-            session.add(new_user)
-            session.commit()
-            session.refresh(new_user)
-            if new_user.id is not None:
-                self.new_user_id = new_user.id
+    async def _register_user(self, username, password) -> None:
+        password_hash = await LocalUser.ahash_password(password)
+        new_user_id = await asyncio.to_thread(_create_user, username, password_hash)
+        if new_user_id is not None:
+            self.new_user_id = new_user_id
 
     @rx.event
-    def handle_registration(
+    async def handle_registration(
         self,
         form_data: dict[str, Any],
     ):
         """Handle registration form on_submit.
 
-        Set error_message appropriately based on validation results.
+        Set error_message appropriately based on validation results. Database
+        access and password hashing run in a worker thread to avoid blocking the
+        event loop.
+
+        Subclasses extending this handler must ``await`` it.
 
         Args:
             form_data: A dict of form fields and values.
         """
         username = form_data["username"]
         password = form_data["password"]
-        validation_errors = self._validate_fields(
+        validation_errors = await self._validate_fields(
             username, password, form_data["confirm_password"]
         )
         if validation_errors:
             self.new_user_id = -1
             return validation_errors
-        self._register_user(username, password)
+        await self._register_user(username, password)
         return type(self).successful_registration
 
     @rx.event
@@ -109,3 +102,42 @@ class RegistrationState(LocalAuthState):
     def redir(self):
         """Redirect to the registration form."""
         return rx.redirect(routes.REGISTER_ROUTE)
+
+
+def _username_exists(username: str) -> bool:
+    """Check whether a username is already registered (blocking).
+
+    Args:
+        username: The username to check.
+
+    Returns:
+        True if a LocalUser with this username exists.
+    """
+    with rx.session() as session:
+        return (
+            session.exec(
+                select(LocalUser).where(LocalUser.username == username)
+            ).one_or_none()
+            is not None
+        )
+
+
+def _create_user(username: str, password_hash: bytes) -> int | None:
+    """Create a new enabled LocalUser (blocking).
+
+    Args:
+        username: The new user's username.
+        password_hash: The bcrypt hash of the new user's password.
+
+    Returns:
+        The new user's id.
+    """
+    with rx.session() as session:
+        new_user = LocalUser()  # type: ignore
+        new_user.username = username
+        new_user.password_hash = password_hash
+        new_user.enabled = True
+        session.add(new_user)
+        session.commit()
+        session.refresh(new_user)
+        return new_user.id

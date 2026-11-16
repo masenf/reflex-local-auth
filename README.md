@@ -99,14 +99,16 @@ creating a new `UserInfo` model and creating a foreign key relationship to the
 import sqlmodel
 import reflex as rx
 import reflex_local_auth
+import sqlmodel
 
 
-class UserInfo(rx.Model, table=True):
+class UserInfo(sqlmodel.SQLModel, table=True):
+    id: int | None = sqlmodel.Field(default=None, primary_key=True)
     email: str
     is_admin: bool = False
     created_from_ip: str
 
-    user_id: int = sqlmodel.Field(foreign_key="user.id")
+    user_id: int = sqlmodel.Field(foreign_key="localuser.id")
 ```
 
 To populate the extra fields, you can create a custom registration page and
@@ -115,6 +117,8 @@ state that asks for the extra info, or it can be added via other event handlers.
 A custom registration state and form might look like:
 
 ```python
+import asyncio
+
 import reflex as rx
 import reflex_local_auth
 from reflex_local_auth.pages.components import input_100w, MIN_WIDTH, PADDING_TOP
@@ -122,22 +126,27 @@ from reflex_local_auth.pages.components import input_100w, MIN_WIDTH, PADDING_TO
 
 class MyRegisterState(reflex_local_auth.RegistrationState):
     # This event handler must be named something besides `handle_registration`!!!
-    def handle_registration_email(self, form_data):
-        registration_result = self.handle_registration(form_data)
+    @rx.event
+    async def handle_registration_email(self, form_data):
+        # handle_registration is async: it hashes the password off the event loop.
+        registration_result = await self.handle_registration(form_data)
         if self.new_user_id >= 0:
-            with rx.session() as session:
-                session.add(
-                    UserInfo(
-                        email=form_data["email"],
-                        created_from_ip=self.router.headers.get(
-                            "x_forwarded_for",
-                            self.router.session.client_ip,
-                        ),
-                        user_id=self.new_user_id,
-                    )
-                )
-                session.commit()
+            await asyncio.to_thread(
+                _save_user_info,
+                UserInfo(
+                    email=form_data["email"],
+                    created_from_ip=self.router.session.client_ip,
+                    user_id=self.new_user_id,
+                ),
+            )
         return registration_result
+
+
+def _save_user_info(user_info: UserInfo) -> None:
+    # Blocking database work runs in a thread to keep the event loop responsive.
+    with rx.session() as session:
+        session.add(user_info)
+        session.commit()
 
 
 def register_error() -> rx.Component:

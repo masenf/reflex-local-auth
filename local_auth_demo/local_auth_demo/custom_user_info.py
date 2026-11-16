@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Optional
 
 import reflex as rx
@@ -29,23 +30,24 @@ class MyLocalAuthState(reflex_local_auth.LocalAuthState):
 
 class MyRegisterState(reflex_local_auth.RegistrationState):
     @rx.event
-    def handle_registration_email(self, form_data: dict[str, Any]):
-        registration_result = self.handle_registration(form_data)
+    async def handle_registration_email(self, form_data: dict[str, Any]):
+        registration_result = await self.handle_registration(form_data)
         if self.new_user_id >= 0:
-            with rx.session() as session:
-                session.add(
-                    UserInfo(
-                        email=form_data["email"],
-                        created_from_ip=getattr(
-                            self.router.headers,
-                            "x_forwarded_for",
-                            self.router.session.client_ip,
-                        ),
-                        user_id=self.new_user_id,
-                    )
-                )
-                session.commit()
+            await asyncio.to_thread(
+                _save_user_info,
+                UserInfo(
+                    email=form_data["email"],
+                    created_from_ip=self.router.session.client_ip,
+                    user_id=self.new_user_id,
+                ),
+            )
         return registration_result
+
+
+def _save_user_info(user_info: UserInfo) -> None:
+    with rx.session() as session:
+        session.add(user_info)
+        session.commit()
 
 
 def register_error() -> rx.Component:
